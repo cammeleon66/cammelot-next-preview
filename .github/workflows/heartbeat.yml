@@ -24,7 +24,7 @@ jobs:
       GH_TOKEN: ${{ secrets.HEARTBEAT_TOKEN }}
       REPO: cammeleon66/cammelot-next
       BASE_BRANCH: next/game-v2
-      MAX_CONCURRENT: '2'
+      MAX_CONCURRENT: '3'
     steps:
       - uses: actions/setup-node@v4
         with:
