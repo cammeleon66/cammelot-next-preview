@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,"><link rel="stylesheet" href="./src/ui/theme.css">
+  <title>Cammelot V2 · A walk by the canal</title>
+  <style>
+    .town { border: 3px solid var(--m-gold); background: var(--m-blue3); }
+    #city { display: block; width: 100%; touch-action: none; cursor: grab; }
+    .controls { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: 1rem; }
+    .gazette { margin-top: 1.5rem; } #notice { color: var(--m-gold); }
+  </style>
+</head>
+<body><main>
+  <header><p class="eyebrow">Cammelot / V2 · neighbourhood study</p>
+    <h1>A walk by the canal.</h1><p>Synthetic visual fixture — no care simulation or clinical predictions.</p>
+    <p>The isolated simulation is ready to grow.</p></header>
+  <section aria-label="Isometric neighbourhood">
+    <div class="town"><canvas id="city" width="800" height="448" tabindex="0" role="img"
+      aria-label="Isometric Cammelot: canal, houses, market, De Brink GP and Cammelot hospital. Use arrow keys to pan." aria-describedby="help">
+      A fictional neighbourhood with residents walking along the canal road.
+    </canvas></div>
+    <p id="help">Drag or focus the town and use arrow keys to pan. Pixels stay at 1×, 2× or 3×; on small screens explore by panning.</p>
+    <div class="controls" aria-label="Town camera">
+      <button id="pause" aria-pressed="false">Pause walkers</button>
+      <button id="out" aria-label="Zoom out">−</button><button id="in" aria-label="Zoom in">+</button>
+      <button id="reset">Reset camera</button><output id="zoom" aria-live="polite">1× pixels</output>
+    </div>
+    <p id="notice" role="status">Loading the neighbourhood…</p>
+  </section>
+  <section class="gazette" aria-labelledby="gazette-title"><h2 id="gazette-title">The Cammelot Gazette</h2>
+    <p>Hendrik brought a spare book. The canal brought its own ducks.</p>
+    <p>Along the northern road: Huisartsenpraktijk De Brink and Ziekenhuis Cammelot.
+      Paper glyphs mark fictional referred walkers, not measured referrals. Interiors arrive in a later issue.</p></section>
+  <footer><a href="./styleguide.html">Visual field guide</a> · <a href="./assets/CREDITS.md">Asset credits</a></footer>
+</main>
+<script type="module">
+  import { createCity, MOCK_SNAPSHOT } from './src/render/city.js';
+  const canvas = document.querySelector('#city'), notice = document.querySelector('#notice');
+  try {
+    const response = await fetch('./src/world/neighbourhood.json');
+    if (!response.ok) throw Error(`World HTTP ${response.status}`);
+    const city = createCity(canvas, await response.json());
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+    let paused = reduced.matches, elapsed = 0, last, frames = 0;
+    const pause = document.querySelector('#pause');
+    const updatePause = () => { pause.textContent = paused ? 'Resume walkers' : 'Pause walkers'; pause.setAttribute('aria-pressed', String(paused)); };
+    updatePause();
+    pause.onclick = () => { paused = !paused; updatePause(); };
+    reduced.addEventListener('change', () => { paused = reduced.matches; updatePause(); });
+    const resize = () => city.resize(canvas.parentElement.clientWidth, innerWidth <= 480 ? 352 : 448);
+    new ResizeObserver(resize).observe(canvas.parentElement); resize();
+    const zoomLabel = () => { document.querySelector('#zoom').textContent = `${city.camera.scale}× pixels`; };
+    document.querySelector('#in').onclick = () => { city.zoom(city.camera.scale + 1); zoomLabel(); };
+    document.querySelector('#out').onclick = () => { city.zoom(city.camera.scale - 1); zoomLabel(); };
+    document.querySelector('#reset').onclick = () => { city.reset(); zoomLabel(); };
+    canvas.onkeydown = event => {
+      const delta = { ArrowLeft: [-32, 0], ArrowRight: [32, 0], ArrowUp: [0, -32], ArrowDown: [0, 32] }[event.key];
+      if (delta) { event.preventDefault(); city.pan(...delta); }
+    };
+    let drag;
+    canvas.onpointerdown = e => { drag = { x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); canvas.focus(); };
+    canvas.onpointermove = e => { if (drag) { city.pan(drag.x - e.clientX, drag.y - e.clientY); drag = { x: e.clientX, y: e.clientY }; } };
+    canvas.onpointerup = canvas.onpointercancel = () => { drag = null; };
+    const samples = [];
+    function frame(now) {
+      if (!paused && last !== undefined && !document.hidden) elapsed += Math.min(now - last, 100);
+      const interval = last === undefined ? 0 : now - last; last = now;
+      const start = performance.now(); city.render(MOCK_SNAPSHOT, (elapsed / 1000) % 40);
+      samples.push({ interval, render: performance.now() - start }); if (samples.length > 600) samples.shift();
+      frames++; canvas.dataset.frames = frames;
+      requestAnimationFrame(frame);
+    }
+    // Read-only diagnostics for browser smoke / budget measurements, not simulation state.
+    window.town = { city, snapshot: MOCK_SNAPSHOT, get elapsed() { return elapsed; }, get samples() { return samples.slice(); } };
+    notice.textContent = '✓ Mock Snapshot · 9 fictional walkers · GP + hospital · no simulation';
+    requestAnimationFrame(frame);
+  } catch (error) { notice.textContent = `Town unavailable: ${error.message}`; console.error(error); }
+</script></body></html>

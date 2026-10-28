@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./src/ui/theme.css">
+  <title>Cammelot V2 · Visual field guide</title>
+</head>
+<body>
+<main>
+  <header><p class="eyebrow">Cammelot / V2 foundations</p><h1>A town, not a dashboard.</h1>
+    <p>Blue menus. Gold edges. People with something to say.</p></header>
+  <div id="ticker"></div>
+  <div class="layout"><div id="left" class="stack"></div><aside id="right" class="stack" aria-label="Town newspaper"></aside></div>
+  <section class="panel wide" aria-labelledby="palette-title"><h2 id="palette-title">The ministry paint box</h2><div id="swatches" class="swatches"></div></section>
+  <footer>Synthetic interface examples only — no simulation, clinical predictions or real patient data.
+    Local font fallbacks; no external assets. <a href="./assets/CREDITS.md">Asset credits</a></footer>
+</main>
+<dialog id="details" class="panel" aria-labelledby="dialog-title">
+  <h2 id="dialog-title">A small, inspectable foundation</h2>
+  <p>This is a visual component library, not a running care model. Values and resident dialogue are fictional examples.</p>
+  <p>Tab stays inside this dialog. Escape or Close returns to the opening button.</p>
+  <form method="dialog"><button autofocus>Close</button></form>
+</dialog>
+<script type="module">
+  import { Panel, Card, Meter, Ticker, Gazette, openDialog } from './src/ui/components.js';
+  import { generatePortrait, PALETTE_TOKENS } from './src/render/sprites.js';
+  const p = value => Object.assign(document.createElement('p'), { textContent: value });
+  document.querySelector('#ticker').append(Ticker({ message: '✓ Style-guide edition · Synthetic examples · The town clock is taking a tea break.' }));
+  const resident = document.createElement('div');
+  resident.className = 'resident';
+  const portrait = generatePortrait('hendrik-veenstra', { skin: '#E0C0A0', hair: '#904828', hType: 7 }, 70, 'male', 82);
+  portrait.className = 'portrait';
+  portrait.setAttribute('role', 'img');
+  portrait.setAttribute('aria-label', 'Pixel portrait of fictional resident Hendrik Veenstra');
+  const bubble = document.createElement('blockquote');
+  bubble.append(Object.assign(document.createElement('strong'), { textContent: 'Hendrik Veenstra' }), p('“I brought a book. And a spare book, just in case.”'));
+  resident.append(portrait, bubble);
+  const inspect = Object.assign(document.createElement('button'), { textContent: 'Inspect the example' });
+  inspect.addEventListener('click', () => openDialog(document.querySelector('#details'), inspect));
+  const status = (tone, copy) => { const node = p(copy); node.className = 'status'; node.dataset.tone = tone; return node; };
+  document.querySelector('#left').append(
+    Panel({ title: '01 / A familiar face', children: [resident] }),
+    Panel({ title: '02 / Decisions need context', children: [
+      Card({ title: 'The reading-room shelf', children: [p('A fictional decision card. No budget is spent and no care outcome is promised.'), status('ok', '✓ Ready · Example only'), inspect] }),
+      Meter({ label: 'Illustrative shelf space', value: 6, max: 10, status: '4 spaces free' }),
+      status('warning', '! Attention · Demonstration state'), status('error', '✕ Unavailable · Demonstration state')
+    ] })
+  );
+  document.querySelector('#right').append(
+    Gazette({ headline: 'Local queue forms for a story about queues', story: 'The library has requested one more bookmark. Hendrik offered two. Council will discuss the matter after tea.' }),
+    Panel({ title: '03 / Built for everyone', children: [p('Native controls. Visible keyboard focus. Status symbols plus words. A quiet ticker, even without reduced motion.'), p('Resize this guide: city-side content comes first, contextual panels stack below. No isometric world is included.')] })
+  );
+  const styles = getComputedStyle(document.documentElement);
+  for (const token of PALETTE_TOKENS) {
+    const swatch = document.createElement('div'); swatch.className = 'swatch';
+    const chip = document.createElement('span'); chip.style.background = `var(${token})`; chip.setAttribute('aria-hidden', 'true');
+    swatch.append(chip, document.createTextNode(`${token} ${styles.getPropertyValue(token).trim()}`));
+    document.querySelector('#swatches').append(swatch);
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+name: Heartbeat
+
+# Laptop-off heartbeat for the private cammeleon66/cammelot-next repo.
+# Runs scripts/automation/auto-delegate.mjs from that repo every 10 minutes on free public-repo runners
+# (scheduled runs there never fire, and runs started by Copilot are held for approval).
+# Output is discarded because logs of this public repo are public.
+# Kill switch: set repo variable HEARTBEAT=0 on cammeleon66/cammelot-next, or disable this workflow.
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: heartbeat
+  cancel-in-progress: false
+
+jobs:
+  beat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GH_TOKEN: ${{ secrets.HEARTBEAT_TOKEN }}
+      REPO: cammeleon66/cammelot-next
+      BASE_BRANCH: next/game-v2
+      MAX_CONCURRENT: '2'
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Tick every 10 minutes for ~5h45m
+        run: |
+          end=$(( $(date +%s) + 345*60 ))
+          while [ "$(date +%s)" -lt "$end" ]; do
+            if [ "$(gh variable get HEARTBEAT -R "$REPO" 2>/dev/null)" = "0" ]; then echo "stopped by HEARTBEAT=0"; exit 0; fi
+            rm -rf next
+            if gh repo clone "$REPO" next -- -q --depth 1 --branch "$BASE_BRANCH" >/dev/null 2>&1; then
+              export AUTO_MERGE="$(gh variable get AUTO_MERGE -R "$REPO" 2>/dev/null || true)"
+              if node next/scripts/automation/auto-delegate.mjs >/dev/null 2>&1; then echo "$(date -u +%H:%M) tick ok"; else echo "$(date -u +%H:%M) tick failed"; fi
+            else
+              echo "$(date -u +%H:%M) clone failed"
+            fi
+            sleep 600
+          done
+      - name: Chain next heartbeat
+        if: always()
+        run: |
+          if [ "$(gh variable get HEARTBEAT -R "$REPO" 2>/dev/null)" = "0" ]; then exit 0; fi
+          gh workflow run heartbeat.yml -R "${{ github.repository }}" --ref main
