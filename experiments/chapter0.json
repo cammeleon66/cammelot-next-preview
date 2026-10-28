@@ -1,0 +1,18 @@
+{
+  "scenario": "../src/scenarios/chapter0.json",
+  "seeds": [17, 53, 89],
+  "quarters": 4,
+  "strategies": [
+    { "id": "baseline", "label": "Baseline", "overrides": [] },
+    {
+      "id": "higher-referral-completeness",
+      "label": "Higher referral completeness (synthetic what-if)",
+      "overrides": [{ "path": "infrastructure.gp_to_hospital.completeness", "value": 0.92 }]
+    },
+    {
+      "id": "extra-outpatient-server",
+      "label": "Two outpatient server seats (synthetic what-if)",
+      "overrides": [{ "path": "areas.outpatient.servers", "value": 2 }]
+    }
+  ]
+}

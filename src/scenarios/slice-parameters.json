@@ -1,0 +1,55 @@
+{
+  "id": "slice-parameters",
+  "version": "0.1.0",
+  "schemaVersion": 1,
+  "title": "Vertical slice parameter register (provenance only)",
+  "description": "Synthetic parameter set mirroring docs/EVIDENCE_AND_ASSUMPTIONS.md. Every parameter carries a provenance tag and a register id. Not a runnable scenario yet.",
+  "parameters": {
+    "treeknormDiagnosticsWeeks": {
+      "register": "E-01",
+      "value": 4,
+      "provenance": "SOURCED",
+      "source": { "id": "NZA-REG-2421", "url": "https://www.officielebekendmakingen.nl/stcrt-2023-33998.html", "title": "Regeling Aanleveren wachttijden medisch-specialistische zorg (Staatscourant 2023, 33998)", "verified": false }
+    },
+    "treeknormTreatmentWeeks": {
+      "register": "E-02",
+      "value": 7,
+      "provenance": "SOURCED",
+      "source": { "id": "NZA-REG-2421", "url": "https://www.officielebekendmakingen.nl/stcrt-2023-33998.html", "title": "Regeling Aanleveren wachttijden medisch-specialistische zorg (Staatscourant 2023, 33998)", "verified": false }
+    },
+    "azwaDataInfraCapShare": {
+      "register": "E-03",
+      "value": 0.1,
+      "provenance": "SOURCED",
+      "source": { "id": "AZWA-QA-DOORBRAAK", "url": "https://www.zorgakkoorden.nl/programmas/aanvullend-zorg-en-welzijnsakkoord/qa-doorbraakmiddelen/", "title": "Q&A Doorbraakmiddelen (zorgakkoorden.nl)", "verified": false }
+    },
+    "azwaWindow": {
+      "register": "E-04",
+      "value": { "start": "2027-01-01", "end": "2027-01-31" },
+      "provenance": "SOURCED",
+      "source": { "id": "AZWA-QA-DOORBRAAK", "url": "https://www.zorgakkoorden.nl/programmas/aanvullend-zorg-en-welzijnsakkoord/qa-doorbraakmiddelen/", "title": "Q&A Doorbraakmiddelen (zorgakkoorden.nl)", "verified": false }
+    },
+    "gpAdminBurden": {
+      "register": "E-05",
+      "value": 0.3,
+      "provenance": "CALIBRATED",
+      "method": "Carried over from legacy Cammelot IST value; source quality not re-checked."
+    },
+    "cohortSize": { "register": "A-01", "value": 600, "provenance": "BALANCE", "rationale": "Stable statistics at playable speed." },
+    "diagnosticsRho": { "register": "A-02", "value": 0.9, "provenance": "BALANCE", "rationale": "Makes the slice insight discoverable." },
+    "probOutpatientOrdersDiagnostics": { "register": "A-03", "value": 0.6, "provenance": "SIMPLIFICATION", "rationale": "Single diagnostic modality; selected with A-12 capacity so baseline scanner utilisation is about 0.9." },
+    "referralCompletenessBaseline": { "register": "A-04", "value": 0.7, "provenance": "HYPOTHETICAL", "rationale": "No Dutch dataset located." },
+    "referralCompletenessIntegrated": { "register": "A-05", "value": 0.92, "provenance": "HYPOTHETICAL", "rationale": "Experiment parameter; ramps over one quarter." },
+    "recruitmentDelayQuarters": { "register": "A-06", "value": { "min": 1, "max": 2, "probability": 0.7 }, "provenance": "BALANCE", "rationale": "Playability." },
+    "agencyCostMultiplier": { "register": "A-07", "value": 1.8, "provenance": "BALANCE", "rationale": "Playability." },
+    "startingBudgetEur": { "register": "A-08", "value": 1200000, "provenance": "BALANCE", "rationale": "Across 3 sources; not derived from IZA per-capita share." },
+    "serviceTimeCv": { "register": "A-09", "value": 0.5, "provenance": "SIMPLIFICATION", "rationale": "Lognormal service times; standard choice." },
+    "burnoutHazardMultiplierAboveRho": { "register": "A-10", "value": 1.5, "provenance": "BALANCE", "rationale": "Applies above rho 0.9." },
+    "chapter0DemandAndPathwaySplit": { "register": "A-11", "value": { "arrivalsPerWeek": 120, "urgentShare": 0.1, "referralShare": 0.4 }, "provenance": "BALANCE", "rationale": "Chapter 0 playable demand and pathway split; not derived from data." },
+    "chapter0CapacityAndHours": { "register": "A-12", "value": { "serversPerArea": 1, "outpatientMeanMinutes": 90, "scannerMeanMinutes": 60 }, "provenance": "BALANCE", "rationale": "Chapter 0 queue tuning; full opening-hour and service parameters are in chapter0.json." },
+    "referralTransferLatencyMinutes": { "register": "A-13", "value": 1440, "provenance": "BALANCE", "rationale": "One-day GP-to-hospital transfer latency." },
+    "abandonmentTrigger": { "register": "A-14", "value": { "treeknormWeeks": 12, "extraWeeks": 12 }, "provenance": "SIMPLIFICATION", "rationale": "Waiting beyond the fixed Treeknorm plus the assumption-tagged extra abandonment period." },
+    "chapter0InterventionCosts": { "register": "A-15", "value": { "specialistEurPerQuarter": 40000, "technicianEurPerQuarter": 25000, "scannerCapitalEur": 250000, "scannerMaintenanceEurPerQuarter": 10000, "scannerConstructionDays": 182, "referralFlowEur": 120000, "referralFlowImplementationDays": 91, "referralFlowRampDays": 91 }, "provenance": "BALANCE", "rationale": "Chapter 0 intervention card costs and delays; playable round numbers, see chapter0.json interventions." },
+    "abandonmentExtraWeeks": { "value": 12, "provenance": "assumption", "rationale": "Weeks beyond the fixed 12-week Treeknorm threshold; see SIMULATION_SPEC.md." }
+  }
+}

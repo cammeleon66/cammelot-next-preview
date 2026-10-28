@@ -1,0 +1,345 @@
+{
+  "id": "chapter0",
+  "version": "0.1.0",
+  "schemaVersion": 1,
+  "title": "Chapter 0: GP referral to treatment (synthetic)",
+  "description": "Synthetic slice of one GP practice, a referral office, one outpatient specialist and one scanner. All values are modelling choices, not claims about the Dutch system; see docs/EVIDENCE_AND_ASSUMPTIONS.md.",
+  "parameters": {
+    "treeknormWeeks": {
+      "value": 12,
+      "provenance": "SIMPLIFICATION",
+      "register": "A-14",
+      "rationale": "Fixed 12-week threshold from SIMULATION_SPEC section 5; not asserted as a verified citation (E-01/E-02 are unverified)."
+    },
+    "abandonmentExtraWeeks": {
+      "value": 12,
+      "provenance": "assumption",
+      "rationale": "Default abandonment delay beyond the 12-week Treeknorm (24 weeks after referral in total), SIM_CONTRACTS section 'Data contracts'."
+    },
+    "arrivalsPerWeek": {
+      "value": 120,
+      "provenance": "BALANCE",
+      "register": "A-11",
+      "rationale": "Mean GP demand arrivals per week (Poisson) for the ~600-resident cohort (A-01); chosen for playable queues."
+    },
+    "pUrgent": {
+      "value": 0.1,
+      "provenance": "BALANCE",
+      "register": "A-11",
+      "rationale": "Share of arrivals assigned urgent priority at arrival."
+    },
+    "pReferral": {
+      "value": 0.4,
+      "provenance": "BALANCE",
+      "register": "A-11",
+      "rationale": "Share of GP consults ending in a specialist referral; chosen with outpatient and diagnostics service times to make the baseline scanner load about 0.9 (A-02)."
+    },
+    "pDiagnostics": {
+      "value": 0.6,
+      "provenance": "SIMPLIFICATION",
+      "register": "A-03",
+      "rationale": "Probability the outpatient consult orders diagnostics; single modality, tuned with the baseline outpatient capacity for scanner load about 0.9 (A-03)."
+    },
+    "gpReworkMeanMinutes": {
+      "value": 10,
+      "provenance": "BALANCE",
+      "register": "A-12",
+      "rationale": "Mean GP admin time to complete and re-send an incomplete referral."
+    },
+    "followupMeanMinutes": {
+      "value": 15,
+      "provenance": "BALANCE",
+      "register": "A-12",
+      "rationale": "Mean outpatient follow-up consult after diagnostics."
+    },
+    "treeknormDiagnosticsWeeks": {
+      "register": "E-01",
+      "value": 4,
+      "provenance": "SOURCED",
+      "source": {
+        "id": "NZA-REG-2421",
+        "url": "https://www.officielebekendmakingen.nl/stcrt-2023-33998.html",
+        "title": "Regeling Aanleveren wachttijden medisch-specialistische zorg (Staatscourant 2023, 33998)",
+        "verified": false
+      }
+    },
+    "treeknormTreatmentWeeks": {
+      "register": "E-02",
+      "value": 7,
+      "provenance": "SOURCED",
+      "source": {
+        "id": "NZA-REG-2421",
+        "url": "https://www.officielebekendmakingen.nl/stcrt-2023-33998.html",
+        "title": "Regeling Aanleveren wachttijden medisch-specialistische zorg (Staatscourant 2023, 33998)",
+        "verified": false
+      }
+    },
+    "azwaDataInfraCapShare": {
+      "register": "E-03",
+      "value": 0.1,
+      "provenance": "SOURCED",
+      "source": {
+        "id": "AZWA-QA-DOORBRAAK",
+        "url": "https://www.zorgakkoorden.nl/programmas/aanvullend-zorg-en-welzijnsakkoord/qa-doorbraakmiddelen/",
+        "title": "Q&A Doorbraakmiddelen (zorgakkoorden.nl)",
+        "verified": false
+      }
+    },
+    "azwaWindow": {
+      "register": "E-04",
+      "value": {
+        "start": "2027-01-01",
+        "end": "2027-01-31"
+      },
+      "provenance": "SOURCED",
+      "source": {
+        "id": "AZWA-QA-DOORBRAAK",
+        "url": "https://www.zorgakkoorden.nl/programmas/aanvullend-zorg-en-welzijnsakkoord/qa-doorbraakmiddelen/",
+        "title": "Q&A Doorbraakmiddelen (zorgakkoorden.nl)",
+        "verified": false
+      }
+    },
+    "gpAdminBurden": {
+      "register": "E-05",
+      "value": 0.3,
+      "provenance": "CALIBRATED",
+      "method": "Carried over from legacy Cammelot IST value; source quality not re-checked."
+    },
+    "cohortSize": {
+      "register": "A-01",
+      "value": 600,
+      "provenance": "BALANCE",
+      "rationale": "Stable statistics at playable speed."
+    },
+    "diagnosticsRho": {
+      "register": "A-02",
+      "value": 0.9,
+      "provenance": "BALANCE",
+      "rationale": "Chosen for the slice's baseline queueing thesis; not a measured real-world value."
+    },
+    "referralCompletenessBaseline": {
+      "register": "A-04",
+      "value": 0.7,
+      "provenance": "HYPOTHETICAL",
+      "rationale": "No Dutch dataset located."
+    },
+    "referralCompletenessIntegrated": {
+      "register": "A-05",
+      "value": 0.92,
+      "provenance": "HYPOTHETICAL",
+      "rationale": "Experiment parameter; ramps over one quarter."
+    },
+    "recruitmentDelayQuarters": {
+      "register": "A-06",
+      "value": {
+        "min": 1,
+        "max": 2,
+        "probability": 0.7
+      },
+      "provenance": "BALANCE",
+      "rationale": "Playability."
+    },
+    "agencyCostMultiplier": {
+      "register": "A-07",
+      "value": 1.8,
+      "provenance": "BALANCE",
+      "rationale": "Playability."
+    },
+    "startingBudgetEur": {
+      "register": "A-08",
+      "value": 1200000,
+      "provenance": "BALANCE",
+      "rationale": "Across three sources; not derived from IZA per-capita share."
+    },
+    "serviceTimeCv": {
+      "register": "A-09",
+      "value": 0.5,
+      "provenance": "SIMPLIFICATION",
+      "rationale": "Lognormal service times; standard choice."
+    },
+    "burnoutHazardMultiplierAboveRho": {
+      "register": "A-10",
+      "value": 1.5,
+      "provenance": "BALANCE",
+      "rationale": "Applies above rho 0.9."
+    },
+    "referralTransferLatencyMinutes": {
+      "register": "A-13",
+      "value": 1440,
+      "provenance": "BALANCE",
+      "rationale": "One-day GP-to-hospital transfer latency."
+    }
+  },
+  "initialState": {
+    "areas": [
+      {
+        "id": "gp",
+        "label": "GP practice",
+        "servers": 1,
+        "serviceTime": { "mean": 10, "cv": 0.5 },
+        "hours": { "days": [0, 1, 2, 3, 4], "startMinute": 480, "endMinute": 1020 },
+        "provenance": "BALANCE",
+        "rationale": "One GP seat for the cohort; lognormal service time with CV 0.5 (A-09). Admin burden is not modelled separately in this phase."
+      },
+      {
+        "id": "referral_office",
+        "label": "Hospital referral office",
+        "servers": 1,
+        "serviceTime": { "mean": 6, "cv": 0.5 },
+        "hours": { "days": [0, 1, 2, 3, 4], "startMinute": 480, "endMinute": 1020 },
+        "provenance": "BALANCE",
+        "rationale": "One admin triage server; lognormal service time with CV 0.5 (A-09)."
+      },
+      {
+        "id": "outpatient",
+        "label": "Outpatient clinic",
+        "servers": 1,
+        "serviceTime": { "mean": 90, "cv": 0.5 },
+        "hours": { "days": [0, 1, 2, 3, 4], "startMinute": 480, "endMinute": 1020 },
+        "provenance": "BALANCE",
+        "rationale": "One specialist; 30 consult slots/week at the stated hours, lognormal service time with CV 0.5 (A-09)."
+      },
+      {
+        "id": "diagnostics",
+        "label": "Diagnostics scanner",
+        "servers": 1,
+        "equipment": 1,
+        "serviceTime": { "mean": 60, "cv": 0.5 },
+        "hours": { "days": [0, 1, 2, 3, 4], "startMinute": 480, "endMinute": 720 },
+        "provenance": "BALANCE",
+        "rationale": "One scanner (equipment 1) staffed by one technician seat (servers 1) with a morning slice allocated to this cohort; default expected rho is about 0.9 (A-02). Capacity is min(servers, equipment), so a new scanner needs a technician and vice versa."
+      }
+    ],
+    "infrastructure": [
+      {
+        "id": "gp_to_hospital",
+        "completeness": 0.7,
+        "latencyMinutes": 1440,
+        "manualHandoffRate": 0,
+        "failureRate": 0,
+        "provenance": "HYPOTHETICAL",
+        "rationale": "Referral completeness baseline 70% (A-04) and one-day transfer latency. manualHandoffRate and failureRate are reserved for later phases and not used by the phase-2 engine."
+      }
+    ],
+    "fundingSources": [
+      {
+        "id": "ministerial-discretionary",
+        "label": "Ministerial discretionary",
+        "amount": 300000,
+        "eligibleCostTypes": ["capital", "one_off_implementation", "recurring_staff", "recurring_maintenance"],
+        "recurringAllowed": true,
+        "provenance": "BALANCE",
+        "register": "A-08",
+        "rationale": "Flexible source; its political cost is not simulated yet."
+      },
+      {
+        "id": "earmarked-programme",
+        "label": "Earmarked programme grant",
+        "amount": 400000,
+        "eligibleCostTypes": ["capital", "one_off_implementation"],
+        "recurringAllowed": false,
+        "eligibleInterventionTypes": ["facility", "integration"],
+        "provenance": "BALANCE",
+        "register": "A-08",
+        "rationale": "One-off spend on named intervention types only; not modelled on any real programme."
+      },
+      {
+        "id": "hospital-operating",
+        "label": "Hospital operating budget",
+        "amount": 500000,
+        "eligibleCostTypes": ["recurring_staff", "recurring_maintenance"],
+        "recurringAllowed": true,
+        "provenance": "BALANCE",
+        "register": "A-08",
+        "rationale": "Recurring staff and maintenance; the three sources total the A-08 budget."
+      }
+    ]
+  },
+  "interventions": [
+    {
+      "id": "one-more-specialist",
+      "title": "One More Specialist",
+      "type": "staff",
+      "implementationDelayDays": 0,
+      "adoption": { "start": 1, "end": 1, "rampDays": 0 },
+      "provenance": "BALANCE",
+      "register": "A-15",
+      "rationale": "Costs are playable round numbers; recruitment delay and success follow A-06.",
+      "costs": [],
+      "effects": [],
+      "variants": [
+        {
+          "id": "recruit-specialist",
+          "label": "Recruit an outpatient specialist",
+          "role": "specialist",
+          "mechanism": "Adds one staffed outpatient consult seat when the hire arrives. Each consult can order a scan.",
+          "costs": [{ "sourceId": "hospital-operating", "amount": 40000, "category": "recurring_staff", "phase": "recruitment" }],
+          "effects": [{ "target": "area:outpatient", "param": "servers", "op": "add", "value": 1, "phase": "recruitment" }]
+        },
+        {
+          "id": "reassign-gp",
+          "label": "Reassign a GP session to outpatient",
+          "mechanism": "Moves one staffed seat from the GP practice to the outpatient clinic from the next day. No new money; the GP practice loses that seat.",
+          "costs": [],
+          "effects": [
+            { "target": "area:outpatient", "param": "servers", "op": "add", "value": 1 },
+            { "target": "area:gp", "param": "servers", "op": "add", "value": -1 }
+          ]
+        },
+        {
+          "id": "recruit-technician",
+          "label": "Recruit a scanner technician",
+          "role": "technician",
+          "mechanism": "Adds one technician seat in diagnostics when the hire arrives. Scans still need a free scanner.",
+          "costs": [{ "sourceId": "hospital-operating", "amount": 25000, "category": "recurring_staff", "phase": "recruitment" }],
+          "effects": [{ "target": "area:diagnostics", "param": "servers", "op": "add", "value": 1, "phase": "recruitment" }]
+        }
+      ]
+    },
+    {
+      "id": "new-scanner-wing",
+      "title": "New Scanner Wing",
+      "type": "facility",
+      "implementationDelayDays": 182,
+      "adoption": { "start": 1, "end": 1, "rampDays": 0 },
+      "provenance": "BALANCE",
+      "register": "A-15",
+      "rationale": "Two-quarter construction and playable round-number capital and maintenance costs.",
+      "mechanism": "Adds one scanner (equipment) after construction. A scanner only scans when a technician seat is free to run it.",
+      "costs": [],
+      "effects": [{ "target": "area:diagnostics", "param": "equipment", "op": "add", "value": 1 }],
+      "variants": [
+        {
+          "id": "earmarked",
+          "label": "Build with the earmarked grant",
+          "costs": [
+            { "sourceId": "earmarked-programme", "amount": 250000, "category": "capital" },
+            { "sourceId": "hospital-operating", "amount": 10000, "category": "recurring_maintenance" }
+          ]
+        },
+        {
+          "id": "discretionary",
+          "label": "Build with discretionary funds",
+          "costs": [
+            { "sourceId": "ministerial-discretionary", "amount": 250000, "category": "capital" },
+            { "sourceId": "hospital-operating", "amount": 10000, "category": "recurring_maintenance" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "connect-referral-flow",
+      "title": "Connect the Referral Flow",
+      "type": "integration",
+      "implementationDelayDays": 91,
+      "adoption": { "start": 0, "end": 1, "rampDays": 91 },
+      "preconditions": ["once"],
+      "provenance": "BALANCE",
+      "register": "A-15",
+      "rationale": "One-quarter implementation then a one-quarter adoption ramp to the A-05 completeness; playable one-off cost.",
+      "mechanism": "Raises GP-to-hospital referral completeness from 70% towards 92% as adoption ramps, so fewer referrals bounce back for GP rework. Adds no clinical capacity.",
+      "costs": [{ "sourceId": "earmarked-programme", "amount": 120000, "category": "one_off_implementation" }],
+      "effects": [{ "target": "edge:gp_to_hospital", "param": "completeness", "op": "set", "value": 0.92 }]
+    }
+  ]
+}

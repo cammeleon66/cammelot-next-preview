@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,"><link rel="stylesheet" href="./src/ui/theme.css">
+  <title>Cammelot V2 · A walk by the canal</title>
+  <style>
+    .town { position: relative; border: 3px solid var(--m-gold); background: var(--m-blue3); }
+    #building-tooltip { position: absolute; z-index: 2; max-width: 16rem; padding: .5rem .75rem; transform: translate(-50%, calc(-100% - .5rem)); pointer-events: none;
+      background: var(--m-blue); border: 2px solid var(--m-gold); color: var(--m-white); font-size: .875rem; line-height: 1.4; }
+    #building-tooltip[hidden] { display: none; }
+    #building-tooltip span { display: block; } #building-tooltip ul { margin: .25rem 0 0; padding: 0; list-style: none; font-family: var(--font-number); }
+    .building-list { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+    .building-list button[data-state="closed"] { border-style: dashed; }
+    .building-list button[data-state="construction"] { border-style: double; border-width: 4px; }
+    #building-panel dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; margin: 1rem 0; }
+    #building-panel dt { color: var(--m-cyan); } #building-panel dd { margin: 0; font-family: var(--font-number); }
+    #building-panel [data-xray-link="referral-completeness"] { color: var(--m-cyan); background: var(--m-blue2); border-block: 1px solid var(--m-cyan); padding: .2rem .4rem; }
+    #building-panel dt[data-xray-link="referral-completeness"] { font-weight: bold; }
+    #city { display: block; width: 100%; touch-action: none; cursor: grab; }
+    .controls { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: 1rem; }
+    #interior[hidden] { display: none; }
+    #interior { transform-origin: 70% 30%; animation: zoom-in .5s steps(6) both; }
+    @keyframes zoom-in { from { transform: scale(.35); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    #interior-canvas { display: block; width: 100%; max-width: 768px; image-rendering: pixelated; border: 3px solid var(--m-gold); cursor: pointer; }
+    #interior-areas { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; padding: 0; list-style: none; }
+    #interior-areas button[aria-pressed="true"] { border-width: 4px; }
+    #interior-panel dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; margin: 1rem 0; }
+    #interior-panel dt { color: var(--m-cyan); } #interior-panel dd { margin: 0; font-family: var(--font-number); }
+    #xray-panel[hidden] { display: none; }
+    #xray-panel { margin-top: 1rem; }
+    #xray-edges { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+    #xray-edges button { width: 100%; text-align: left; }
+    #xray-edges button[aria-pressed="true"] { border-width: 4px; }
+    #xray-detail dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; margin: 1rem 0; }
+    #xray-detail dt { color: var(--m-cyan); } #xray-detail dd { margin: 0; font-family: var(--font-number); }
+    .xray-note { border-inline-start: 4px solid var(--m-gold); padding-inline-start: .75rem; }
+    .gazette { margin-top: 1.5rem; } #notice { color: var(--m-gold); }
+    #replay-panel { margin-top: 1.5rem; }
+    #replay-panel label { display: inline-grid; gap: .25rem; margin: .25rem .75rem .75rem 0; }
+    #replay-panel input { min-height: 44px; max-width: 22rem; padding: .5rem; border: 2px solid var(--m-gold); background: var(--m-blue2); color: var(--m-white); font: inherit; }
+    #replay-results { overflow-wrap: anywhere; }
+    #decisions { margin-top: 1.5rem; } #decision-cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); }
+    #decision-cards .card + .card { margin-top: 0; } .decision-option { border-top: 2px dashed var(--m-gold); padding-top: .75rem; margin-top: .75rem; }
+    #decision-cards .card > p { margin: 1rem 0 0; } .decision-option dt { color: var(--m-cyan); } .decision-option dd { margin: 0 0 .5rem; font-family: var(--font-number); }
+  </style>
+</head>
+<body><main>
+  <header><p class="eyebrow">Cammelot / V2 · neighbourhood study</p>
+    <h1>A walk by the canal.</h1><p id="banner">Simulation — synthetic population, parameters tagged in the evidence register</p></header>
+  <section aria-label="Isometric neighbourhood">
+    <div class="town"><canvas id="city" width="800" height="448" tabindex="0" role="img"
+      aria-label="Isometric Cammelot: canal, houses, market, De Brink GP and Cammelot hospital. Use arrow keys to pan." aria-describedby="help">
+      A fictional neighbourhood with residents walking along the canal road.
+    </canvas><div id="building-tooltip" role="tooltip" hidden></div></div>
+    <nav id="buildings" aria-label="Buildings"></nav>
+    <p id="help">Drag or focus the town and use arrow keys to pan. Click a building, or Tab to a building button and press Enter, to open its panel. Pixels stay at 1×, 2× or 3×; on small screens explore by panning.</p>
+    <p>Press X to toggle the infrastructure X-ray (the shortcut is inactive while editing or in a dialog).</p>
+    <div class="controls" id="time-controls" role="group" aria-label="Time controls">
+      <button id="play" type="button" aria-pressed="false">Pause time</button>
+      <span role="group" aria-label="Speed"><button type="button" data-speed="1" aria-pressed="true">1×</button>
+        <button type="button" data-speed="4" aria-pressed="false">4×</button>
+        <button type="button" data-speed="16" aria-pressed="false">16×</button></span>
+      <output id="week" aria-label="Simulated time">Week 1</output>
+    </div>
+    <div class="controls" aria-label="Town camera">
+      <button id="pause" aria-pressed="false">Pause walkers</button>
+      <button id="out" aria-label="Zoom out">−</button><button id="in" aria-label="Zoom in">+</button>
+      <button id="reset">Reset camera</button><button id="open-hospital" aria-controls="interior" aria-expanded="false">Open hospital cutaway</button><output id="zoom" aria-live="polite">1× pixels</output>
+      <button id="toggle-xray" type="button" aria-pressed="false" aria-controls="xray-panel">Infrastructure X-ray (X)</button>
+    </div>
+    <section id="replay-panel" class="panel" aria-labelledby="replay-title">
+      <h2 id="replay-title">Replay &amp; compare</h2>
+      <p>Synthetic baseline comparisons only. A different seed is a different synthetic winter, not an intervention comparison. If scenario hashes differ, parameters may differ and no exact replay is claimed. Queue deltas are end-state differences, not causal movement.</p>
+      <label>Second baseline seed <input id="compare-seed" type="text" value="42" autocomplete="off"></label>
+      <button id="compare-baseline" type="button">Replay &amp; compare seeds</button>
+      <button id="export-runlog" type="button">Export aggregate RunLog</button>
+      <label>Import aggregate RunLog <input id="import-runlog" type="file" accept="application/json,.json"></label>
+      <div id="replay-results" aria-live="polite"></div>
+    </section>
+    <section id="xray-panel" class="panel" aria-labelledby="xray-title" hidden>
+      <h2 id="xray-title">Digital infrastructure X-ray</h2>
+      <p class="xray-note">Synthetic fixture · assumption. These invented demonstration values are not observations, healthcare evidence, or a live integration.</p>
+      <p>Static markers: four blocks show completeness (25% each); gold ticks show latency (one per 15 minutes, capped at six); clipboard and framed ! marks cue handoffs and failures. These are coarse display cues; select an edge for exact values. Status also uses ✓ / ! shapes and text, not colour alone.</p>
+      <ul id="xray-edges" aria-label="Infrastructure edges"></ul>
+      <article id="xray-detail" aria-live="polite"><h3 data-edge-title>Select an edge</h3><p data-edge-status></p><dl data-edge-values></dl></article>
+    </section>
+    <dialog id="building-panel" class="panel" aria-labelledby="building-panel-title">
+      <h2 id="building-panel-title" data-panel-title></h2><dl data-panel-body></dl>
+      <p>Synthetic values, not measurements.</p>
+      <button type="button" data-panel-close>Close</button>
+    </dialog>
+    <p id="notice" role="status">Loading the neighbourhood…</p>
+  </section>
+  <section id="interior" aria-labelledby="interior-title" hidden>
+    <h2 id="interior-title" tabindex="-1">Ziekenhuis Cammelot — cutaway</h2>
+    <p>Chairs are capacity, people are the queue, staff are on shift. Synthetic values, not measurements.</p>
+    <div id="interior-stage"></div>
+    <ul id="interior-areas"></ul>
+    <section id="interior-panel" class="panel" aria-live="polite"><h3 data-title>Choose an area</h3><dl data-body></dl></section>
+    <button id="close-hospital" type="button">Back to the city</button>
+  </section>
+  <section id="decisions" class="panel" aria-labelledby="decisions-title" hidden>
+    <h2 id="decisions-title">Decisions</h2>
+    <p>Each card shows cost by funding source, delay and mechanism — not a predicted result. Commit, run time, then look where the queue goes. Synthetic game-balance values.</p>
+    <div id="decision-cards"></div>
+    <p id="decision-status" role="status" aria-live="polite"></p>
+  </section>
+  <section class="gazette" aria-labelledby="gazette-title"><h2 id="gazette-title">The Cammelot Gazette</h2>
+    <p>Hendrik brought a spare book. The canal brought its own ducks.</p>
+    <p>Along the northern road: Huisartsenpraktijk De Brink and Ziekenhuis Cammelot.
+      Paper glyphs mark fictional referred walkers, not measured referrals.</p></section>
+  <footer><a href="./assumptions.html">Assumptions &amp; evidence</a> · <a href="./styleguide.html">Visual field guide</a> · <a href="./assets/CREDITS.md">Asset credits</a></footer>
+</main>
+<script type="module">
+  import { createCity, MOCK_SNAPSHOT } from './src/render/city.js';
+  import { createBuildingUI } from './src/ui/buildings.js';
+  import { mapInfrastructure, shouldToggleXrayKey } from './src/render/xray.js';
+  import { createLive, toRenderSnapshot, describeTime, HONEST_LABEL, SPEEDS } from './src/app/live.js';
+  import { createSim } from './src/sim/engine.js';
+  import { compareRunLogs, exportRunLog, importRunLog, replayRunLog } from './src/sim/replay.js';
+  import { describeDecisionCards, renderDecisionCards, REASONS } from './src/ui/decisions.js';
+  const canvas = document.querySelector('#city'), notice = document.querySelector('#notice');
+  try {
+    const response = await fetch('./src/world/neighbourhood.json');
+    if (!response.ok) throw Error(`World HTTP ${response.status}`);
+    const world = await response.json(), city = createCity(canvas, world);
+    // `?fixture` keeps the static mock Snapshots for visual tests; the default page runs the real engine.
+    const params = new URLSearchParams(location.search), fixture = params.has('fixture');
+    let scenario, live, snapshot = MOCK_SNAPSHOT;
+    const timeControls = document.querySelector('#time-controls'), banner = document.querySelector('#banner');
+    if (fixture) { timeControls.hidden = true; banner.textContent = 'Synthetic visual fixture — static mock Snapshots, no simulation.'; }
+    else {
+      const scenarioResponse = await fetch('./src/scenarios/chapter0.json');
+      if (!scenarioResponse.ok) throw Error(`Scenario HTTP ${scenarioResponse.status}`);
+      scenario = await scenarioResponse.json();
+      const parseSeed = value => {
+        if (typeof value !== 'string' || value.length === 0) return 42;
+        if (/^-?\d+$/.test(value)) {
+          const numeric = Number(value);
+          if (Number.isSafeInteger(numeric)) return numeric;
+        }
+        return value;
+      };
+      const seed = parseSeed(params.get('seed') ?? '42');
+      live = createLive(scenario, { seed });
+      banner.textContent = HONEST_LABEL;
+      snapshot = toRenderSnapshot(live.snapshot, scenario);
+    }
+    const buildings = createBuildingUI({ canvas, city, world, snapshot, root: document.querySelector('#buildings'),
+      panel: document.querySelector('#building-panel'), tooltip: document.querySelector('#building-tooltip') });
+    const xrayButton = document.querySelector('#toggle-xray'), xrayPanel = document.querySelector('#xray-panel');
+    const xrayNote = document.querySelector('.xray-note');
+    const xrayEdges = document.querySelector('#xray-edges'), xrayTitle = document.querySelector('[data-edge-title]');
+    const xrayStatus = document.querySelector('[data-edge-status]'), xrayValues = document.querySelector('[data-edge-values]');
+    const formatRate = value => `${value} (${Number((value * 100).toPrecision(8))}%)`;
+    let xrayEnabled = false, selectedEdgeId = null, panelSnapshot, refreshDecisions = () => {};
+    if (!fixture) {
+      const edge = scenario.initialState.infrastructure.find(item => item.id === 'gp_to_hospital');
+      xrayNote.textContent = `Synthetic simulation · ${edge?.provenance ?? 'unlabelled'} scenario input. These values are model parameters, not observations or healthcare evidence.`;
+    }
+    function refreshXrayPanel() {
+      const edges = mapInfrastructure(snapshot);
+      if (!edges.some(edge => edge.id === selectedEdgeId)) selectedEdgeId = edges[0]?.id ?? null;
+      xrayEdges.replaceChildren(...edges.map(edge => {
+        const li = document.createElement('li'), button = document.createElement('button');
+        button.type = 'button'; button.dataset.edgeId = edge.id;
+        button.setAttribute('aria-pressed', String(edge.id === selectedEdgeId));
+        button.textContent = `${edge.label} — ${formatRate(edge.completeness)} complete · ${edge.latencyMinutes} min`;
+        button.onclick = () => {
+          selectedEdgeId = edge.id; refreshXrayPanel();
+          xrayEdges.querySelector(`[data-edge-id="${edge.id}"]`)?.focus();
+        };
+        li.append(button); return li;
+      }));
+      const edge = edges.find(item => item.id === selectedEdgeId);
+      if (!edge) {
+        xrayTitle.textContent = 'No fixture infrastructure edges';
+        xrayStatus.textContent = 'No matching Snapshot.infrastructure records are available.';
+        xrayValues.replaceChildren();
+        return;
+      }
+      const needsAttention = edge.completeness < 0.8 || edge.failureRate >= 0.1;
+      xrayTitle.textContent = edge.label;
+      xrayStatus.textContent = needsAttention ? '⚠ Fixture status: incomplete / failure-prone' : '✓ Fixture status: connected';
+      const rows = [
+        ['Completeness', formatRate(edge.completeness)],
+        ['Latency', `${edge.latencyMinutes} minutes`],
+        ['Manual handoff rate', formatRate(edge.manualHandoffRate)],
+        ['Failure rate', formatRate(edge.failureRate)]
+      ];
+      xrayValues.replaceChildren(...rows.flatMap(([label, value]) => {
+        const dt = document.createElement('dt'), dd = document.createElement('dd');
+        dt.textContent = label; dd.textContent = value; return [dt, dd];
+      }));
+      xrayEdges.querySelectorAll('button').forEach(button =>
+        button.setAttribute('aria-pressed', String(button.dataset.edgeId === edge.id)));
+    }
+    function setXray(enabled) {
+      xrayEnabled = enabled;
+      xrayButton.setAttribute('aria-pressed', String(enabled));
+      xrayButton.textContent = enabled ? 'Turn infrastructure X-ray off (X)' : 'Infrastructure X-ray (X)';
+      xrayPanel.hidden = !enabled;
+      if (!enabled && xrayPanel.contains(document.activeElement)) xrayButton.focus();
+      canvas.setAttribute('aria-label', enabled
+        ? 'Isometric Cammelot infrastructure X-ray. Static information edges; select the edge panel for synthetic fixture values.'
+        : 'Isometric Cammelot: canal, houses, market, De Brink GP and Cammelot hospital. Use arrow keys to pan.');
+    }
+    xrayButton.onclick = () => setXray(!xrayEnabled);
+    window.addEventListener('keydown', event => {
+      if (!shouldToggleXrayKey(event)) return;
+      event.preventDefault(); setXray(!xrayEnabled);
+    });
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+    let paused = reduced.matches, elapsed = 0, last, frames = 0, lastPublish = -Infinity, published, simFailed = false, drawFailed = false;
+    const pause = document.querySelector('#pause');
+    const updatePause = () => { pause.textContent = paused ? 'Resume walkers' : 'Pause walkers'; pause.setAttribute('aria-pressed', String(paused)); };
+    updatePause();
+    pause.onclick = () => { paused = !paused; updatePause(); };
+    reduced.addEventListener('change', () => { paused = reduced.matches; updatePause(); });
+    const resize = () => city.resize(canvas.parentElement.clientWidth, innerWidth <= 480 ? 352 : 448);
+    new ResizeObserver(resize).observe(canvas.parentElement); resize();
+    const zoomLabel = () => { document.querySelector('#zoom').textContent = `${city.camera.scale}× pixels`; };
+    document.querySelector('#in').onclick = () => { city.zoom(city.camera.scale + 1); zoomLabel(); };
+    document.querySelector('#out').onclick = () => { city.zoom(city.camera.scale - 1); zoomLabel(); };
+    document.querySelector('#reset').onclick = () => { city.reset(); zoomLabel(); };
+    canvas.onkeydown = event => {
+      const delta = { ArrowLeft: [-32, 0], ArrowRight: [32, 0], ArrowUp: [0, -32], ArrowDown: [0, 32] }[event.key];
+      if (delta) { event.preventDefault(); city.pan(...delta); }
+    };
+    let drag;
+    canvas.onpointerdown = e => { drag = { x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); canvas.focus(); };
+    canvas.onpointermove = e => { if (drag) { city.pan(drag.x - e.clientX, drag.y - e.clientY); drag = { x: e.clientX, y: e.clientY }; } };
+    canvas.onpointerup = canvas.onpointercancel = () => { drag = null; };
+    const samples = [], play = document.querySelector('#play'), weekOut = document.querySelector('#week');
+    const speedButtons = [...document.querySelectorAll('[data-speed]')];
+    const updateTime = () => {
+      play.textContent = live.paused ? 'Play time' : 'Pause time'; play.setAttribute('aria-pressed', String(live.paused));
+      speedButtons.forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.speed) === live.speed)));
+      const t = describeTime(live.snapshot.time); weekOut.textContent = t.text; weekOut.dataset.week = t.week;
+    };
+    if (live) {
+      play.onclick = () => { live.setPaused(!live.paused); updateTime(); };
+      speedButtons.forEach(b => { b.onclick = () => { live.setSpeed(Number(b.dataset.speed)); updateTime(); }; });
+      addEventListener('keydown', e => {
+        if (e.target.closest?.('input, textarea, select, dialog') || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key === ' ' && e.target === document.body) { e.preventDefault(); play.click(); }
+        else if (SPEEDS[Number(e.key) - 1] && e.target === document.body) speedButtons[Number(e.key) - 1].click();
+      });
+      updateTime();
+      const replayResults = document.querySelector('#replay-results');
+      const parseSeed = value => {
+        const text = value.trim();
+        if (!text) throw new TypeError('Enter a seed.');
+        if (/^-?\d+$/.test(text)) {
+          const numeric = Number(text);
+          if (Number.isSafeInteger(numeric)) return numeric;
+        }
+        return text;
+      };
+      const makeLogAtCurrentTime = seedValue => {
+        const sim = createSim(scenario, seedValue);
+        sim.runUntil(live.snapshot.time);
+        return sim.runLog();
+      };
+      const displayComparison = (a, b, replayHash = null) => {
+        const result = compareRunLogs(a, b);
+        const scenarioHashDiffers = a.scenario.sha256 !== b.scenario.sha256;
+        const metricLines = (metrics) => metrics.map(({ name, a: before, b: after, delta }) =>
+          `${name}: ${delta === null ? 'not present in both runs' : `A ${before} → B ${after} · Δ ${delta}`}`);
+        replayResults.textContent = [
+          `Synthetic comparison · ${scenarioHashDiffers ? 'scenario hash differs; no exact replay performed' : 'matching scenario hash'}`,
+          `Decision log · A ${a.decisions.length} entries · B ${b.decisions.length} entries`,
+          ...(replayHash ? [`✓ Imported RunLog replayed exactly · snapshot SHA-256 ${replayHash}`] : []),
+          'System outcomes & KPIs', ...metricLines(result.system),
+          'Local resource KPIs', ...metricLines(result.local),
+          'Queue deltas are end-state differences, not causal movement.',
+          'Where the queue went · B − A',
+          ...result.queueChanges.map(({ areaId, a: before, b: after, delta }) =>
+            `${areaId}: ${before} → ${after} waiting · Δ ${delta}`),
+        ].join('\n');
+      };
+      document.querySelector('#compare-baseline').onclick = () => {
+        try {
+          const other = makeLogAtCurrentTime(parseSeed(document.querySelector('#compare-seed').value));
+          displayComparison(live.runLog(), other);
+        } catch (error) {
+          replayResults.textContent = `Comparison unavailable: ${error.message}`;
+        }
+      };
+      document.querySelector('#export-runlog').onclick = () => {
+        const blob = new Blob([exportRunLog(live.runLog())], { type: 'application/json' });
+        const url = URL.createObjectURL(blob), link = document.createElement('a');
+        link.href = url; link.download = `cammelot-run-${String(live.snapshot.seed)}.json`;
+        link.click(); URL.revokeObjectURL(url);
+      };
+      document.querySelector('#import-runlog').onchange = async event => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+          const imported = importRunLog(await file.text());
+          const currentLog = live.runLog();
+          if (imported.scenario.sha256 !== currentLog.scenario.sha256) {
+            displayComparison(currentLog, imported);
+            return;
+          }
+          const replayed = replayRunLog(scenario, imported);
+          const currentSeed = createSim(scenario, live.snapshot.seed);
+          currentSeed.runUntil(imported.finalTime);
+          displayComparison(currentSeed.runLog(), imported, replayed.snapshotHash);
+        } catch (error) {
+          replayResults.textContent = `RunLog import/comparison unavailable: ${error.message}`;
+        }
+      };
+      const decisionRoot = document.querySelector('#decision-cards'), decisionStatus = document.querySelector('#decision-status');
+      let decisionKey;
+      const commit = (interventionId, variant, label) => {
+        const entry = live.commit(interventionId, variant);
+        decisionStatus.textContent = entry.status === 'applied'
+          ? `Committed “${label}”. Implementation starts ${describeTime(entry.effectiveAt).text}.`
+          : `Not committed: ${REASONS[entry.reasonCode] ?? entry.reasonCode}.`;
+        snapshot = toRenderSnapshot(live.snapshot, scenario); refreshDecisions();
+      };
+      refreshDecisions = () => {
+        const key = JSON.stringify([live.snapshot.funding, live.snapshot.interventions]);
+        if (key === decisionKey) return;
+        decisionKey = key; renderDecisionCards(decisionRoot, describeDecisionCards(scenario, live.snapshot), commit);
+      };
+      document.querySelector('#decisions').hidden = false; refreshDecisions();
+    }
+    // Sim tick and draw are decoupled: a failure in one is logged once and never stops the frame loop.
+    function frame(now) {
+      const dt = last === undefined ? 0 : now - last;
+      if (live && !document.hidden) {
+        try {
+          const next = live.advance(dt);
+          if (now - lastPublish >= 250 && next !== published) {
+            lastPublish = now; published = next; snapshot = toRenderSnapshot(next, scenario); updateTime(); updateInterior(); refreshDecisions();
+          }
+        } catch (error) { if (!simFailed) { simFailed = true; console.error('Simulation tick failed', error); notice.textContent = 'Simulation stopped: see console.'; } live.setPaused(true); }
+      }
+      if (!paused && last !== undefined && !document.hidden) elapsed += Math.min(dt, 100);
+      last = now;
+      const start = performance.now();
+      try {
+        buildings.setSnapshot(snapshot);
+        if (panelSnapshot !== snapshot) { panelSnapshot = snapshot; refreshXrayPanel(); }
+        city.render(snapshot, (elapsed / 1000) % 40, { ...buildings.view, xray: xrayEnabled });
+      }
+      catch (error) { if (!drawFailed) { drawFailed = true; console.error('Town draw failed', error); } }
+      samples.push({ interval: dt, render: performance.now() - start }); if (samples.length > 600) samples.shift();
+      frames++; canvas.dataset.frames = frames;
+      requestAnimationFrame(frame);
+    }
+    // Read-only diagnostics for browser smoke / budget measurements, not simulation state.
+    window.town = { city, buildings, get live() { return live; }, get snapshot() { return snapshot; }, set snapshot(next) { snapshot = next; }, get xrayEnabled() { return xrayEnabled; }, get elapsed() { return elapsed; }, get samples() { return samples.slice(); } };
+    const { MOCK_INTERIOR_SNAPSHOT, AREAS, createInterior, describeArea, areaAt } = await import('./src/render/interior.js');
+    // The cutaway canvas exists only while the hospital is open, so the city stays the page's single canvas.
+    const interiorEl = document.querySelector('#interior'), stage = document.querySelector('#interior-stage');
+    let interiorCanvas, interior;
+    const areaList = document.querySelector('#interior-areas');
+    const openButton = document.querySelector('#open-hospital');
+    const panel = document.querySelector('#interior-panel');
+    let area = null;
+    const interiorSnapshot = () => live ? snapshot : MOCK_INTERIOR_SNAPSHOT;
+    const drawInterior = () => interior?.render(interiorSnapshot(), area);
+    const choose = id => {
+      area = id; const d = describeArea(interiorSnapshot(), id);
+      panel.querySelector('[data-title]').textContent = d.name;
+      const rows = [['Queue', `${d.queue} waiting`], ['In service', `${d.inService} of ${d.capacity} chairs`],
+        ['Mean wait', d.meanWaitDays === null ? 'n/a' : `${d.meanWaitDays} days`], ['Utilisation ρ', `${d.rho.toFixed(2)} (${d.bandLabel})`],
+        ['Staff on shift', String(d.staffOnShift)], ['Reason', d.reason]];
+      panel.querySelector('[data-body]').replaceChildren(...rows.flatMap(([t, v]) => {
+        const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = t; dd.textContent = v; return [dt, dd]; }));
+      areaList.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === id)));
+      drawInterior();
+    };
+    const updateInterior = () => { if (!interior) return; if (area) choose(area); else drawInterior(); };
+    for (const a of AREAS) {
+      const li = document.createElement('li'), b = document.createElement('button');
+      b.type = 'button'; b.dataset.id = a.id; b.textContent = a.name; b.setAttribute('aria-pressed', 'false');
+      b.onclick = () => choose(a.id); li.append(b); areaList.append(li);
+    }
+    const clickArea = e => {
+      const r = interiorCanvas.getBoundingClientRect(), id = areaAt({ x: (e.clientX - r.left) * 768 / r.width, y: (e.clientY - r.top) * 332 / r.height });
+      if (id) choose(id);
+    };
+    openButton.onclick = () => {
+      if (!interiorCanvas) {
+        interiorCanvas = Object.assign(document.createElement('canvas'), { id: 'interior-canvas', width: 768, height: 332, onclick: clickArea });
+        interiorCanvas.setAttribute('role', 'img');
+        interiorCanvas.setAttribute('aria-label', 'Hospital cutaway with Referral office, Outpatient clinic and Diagnostics. Use the area buttons for details.');
+        stage.append(interiorCanvas); interior = createInterior(interiorCanvas);
+      }
+      interiorEl.hidden = false; openButton.setAttribute('aria-expanded', 'true'); drawInterior();
+      document.querySelector('#interior-title').focus();
+    };
+    document.querySelector('#close-hospital').onclick = () => {
+      interiorCanvas?.remove(); interiorCanvas = interior = undefined; interiorEl.hidden = true; openButton.setAttribute('aria-expanded', 'false'); openButton.focus();
+    };
+    notice.textContent = fixture ? '✓ Mock Snapshot · 9 fictional walkers · GP + hospital selectable · no simulation'
+      : '✓ Live simulation · seed ' + live.snapshot.seed + ' · GP + hospital selectable · use the time controls (Space pauses, 1/2/3 set speed)';
+    requestAnimationFrame(frame);
+  } catch (error) { notice.textContent = `Town unavailable: ${error.message}`; console.error(error); }
+</script></body></html>
